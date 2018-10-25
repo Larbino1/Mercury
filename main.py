@@ -13,14 +13,7 @@ am = utils.AudioManager()
 def play_and_record(file_to_play, file_to_save):
     duration = utils.get_wav_duration(file_to_play)
 
-    play = Thread(target=am.spk.play_wav, args=(file_to_play,))
-    record = Thread(target=am.mic.record, args=(file_to_save, duration + 1.5))
-    record.start()
-    time.sleep(0.75)
-    play.start()
-    play.join()
-    record.join()
-
+    am.playrec(file_to_play, file_to_save, duration, True)
 
 rate = 150
 base_freq = 1000

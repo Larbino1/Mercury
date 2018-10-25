@@ -2,7 +2,7 @@ import numpy as np
 
 # testbytes = np.fromstring('''80 01''', dtype=np.ubyte, count=2)
 
-# testbytes = np.fromstring('''64 36 de 9c 7d c6 a0 76''', dtype=np.ubyte, count=8)
+#testbytes = np.fromstring('''64 36 de 9c 7d c6 a0 76''', dtype=np.ubyte, count=8)
 
 # testbytes = np.fromstring('''64 36 de 9c 7d c6 a0 76 07 8b 0d 78 2f 47 07 6c
 # c0 bf 25 ed 9f 9a 9e e8 6e ff 5f b5 07 b6 57 05
@@ -18,7 +18,7 @@ import numpy as np
 # 3a a5 cc f9 ''', dtype=np.ubyte, count=100)
 
 l = 1000
-testbytes = np.fromstring(np.random.bytes(1000), dtype=np.ubyte, count=1000)
+testbytes = np.fromstring(np.random.bytes(l), dtype=np.ubyte, count=l)
 
 
 testbits = np.unpackbits(testbytes)

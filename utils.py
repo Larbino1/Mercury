@@ -1,7 +1,8 @@
-import pyaudio
+import sounddevice as sd
+import soundfile as sf
 import wave
 import math
-import sys
+import time
 import numpy as np
 import struct
 import matplotlib.pyplot as plt
@@ -10,65 +11,46 @@ SAMPLE_RATE = 44100
 
 class AudioManager:
     def __init__(self):
-        self.p = pyaudio.PyAudio()
-        self.spk = Speaker(self.p)
-        self.mic = Mic(self.p)
+        self.sd = sd
+        self.sf = sf
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.p.terminate()
+        pass
+
+    def playrec(self, file_to_play, file_to_save, duration, plot=True):
+        frames = round((duration+1) * SAMPLE_RATE)
+        data, fs = sf.read('rec/' + file_to_play)
+        dataout = sd.playrec(data, fs, 1)
+        time.sleep(duration+1)
+        sf.write('rec/' + file_to_save, dataout, SAMPLE_RATE)
+        if plot:
+            print("Showing plot of recorded data")
+            print(data)
+            plt.plot(data)
+            plt.show()
 
 
-class Speaker:
-    def __init__(self, p):
-        self.p = p
-        self.CHUNK = 1024
+    def record(self, filename, t, plot=False):
+        print("Recording to {} for {} seconds".format(filename, t))
+        frames = round(t * SAMPLE_RATE)
+        data = sd.rec(frames, SAMPLE_RATE, channels=1)
+        time.sleep(t)
+        sf.write('rec/' + filename, data, SAMPLE_RATE)
+        if plot:
+            print("Showing plot of recorded data")
+            print(data)
+            plt.plot(data)
+            plt.show()
 
     def play_wav(self, filename):
-        p = self.p
-        wf = wave.open('rec/' + filename)
-
-        # open stream
-        with OutputStream(p, p.get_format_from_width(wf.getsampwidth()), wf.getnchannels(),
-                          wf.getframerate()) as stream:
-            # read data
-            data = wf.readframes(self.CHUNK)
-
-            # play stream
-            while len(data) > 0:
-                stream.write(data)
-                data = wf.readframes(self.CHUNK)
+        data, fs = sf.read('rec/' + filename)
+        sd.play(data, fs)
 
     def test_tone(self):
         self.play_wav('test.wav')
-
-
-class Mic:
-    def __init__(self, p):
-        self.p = p
-        specs = p.get_default_input_device_info()
-        print('Mic specs: {}'.format(specs))
-        self.format = 8
-        self.channels = 1
-        self.rate = SAMPLE_RATE
-        self.CHUNK = 1024
-
-    def record(self,filename, t):
-        with InputStream(self.p, self.format, self.channels, self.rate, self.CHUNK) as stream:
-            print("recording")
-            specs = self.p.get_default_output_device_info()
-            frames = []
-            for i in range(0, int(self.rate / self.CHUNK * t)):
-                data = stream.read(self.CHUNK)
-                frames.append(data)
-
-            with wave.open('rec/' + filename, 'wb') as wavefile:
-                wavefile.setnchannels(self.channels)
-                wavefile.setsampwidth(self.p.get_sample_size(self.format))
-                wavefile.setframerate(self.rate)
-                wavefile.writeframes(b''.join(frames))
 
 
 class OutputStream:
@@ -198,6 +180,7 @@ def get_wav_duration(filename):
 def encode(filename, bytes_array, freqs, rate=25, ):
     print('Encoding: {}'.format(bytes_array))
     audio = []
+    audio = append_silence(audio, duration_milliseconds=500)
 
     total_bits = len(bytes_array)
     print('total_bits = {}'.format(total_bits))
@@ -216,6 +199,8 @@ def encode(filename, bytes_array, freqs, rate=25, ):
                 active_freqs.append(freq)
         # print('{}/{}'.format(i, total_bits))
         audio = append_sinewaves(audio, freqs=active_freqs, duration_milliseconds=duration)
+
+    audio = append_silence(audio, duration_milliseconds=500)
 
     save_wav(audio, filename)
     print('DONE')
