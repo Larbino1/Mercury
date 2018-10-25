@@ -16,8 +16,8 @@ def play_and_record(file_to_play, file_to_save):
     am.playrec(file_to_play, file_to_save, duration, True)
 
 rate = 150
-base_freq = 1000
-freqs = [base_freq + 1000*i for i in range(8)]
+base_freq = 15000
+freqs = [base_freq + 200*i for i in range(8)]
 
 print('Frequencies: {}'.format(freqs))
 

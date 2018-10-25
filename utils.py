@@ -7,6 +7,10 @@ import numpy as np
 import struct
 import matplotlib.pyplot as plt
 
+SYNC_PULSE_WIDTH = 10
+SYNC_FRAME_WIDTH = SYNC_PULSE_WIDTH*5
+SYNC_PULSE_FREQ = 11000
+
 SAMPLE_RATE = 44100
 
 class AudioManager:
@@ -176,6 +180,15 @@ def get_wav_duration(filename):
         duration = frames / float(rate)
     return duration
 
+def get_sync_pulse():
+    audio = []
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
+    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
+    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
+    return audio
+
 
 def encode(filename, bytes_array, freqs, rate=25, ):
     print('Encoding: {}'.format(bytes_array))
@@ -186,10 +199,7 @@ def encode(filename, bytes_array, freqs, rate=25, ):
     print('total_bits = {}'.format(total_bits))
     duration = 1000/rate
 
-    audio = append_sinewave(audio, duration_milliseconds=100, freq=440)
-    audio = append_silence(audio, duration_milliseconds=100)
-    audio = append_sinewave(audio, duration_milliseconds=100, freq=440)
-    audio = append_silence(audio, duration_milliseconds=100)
+    audio.extend(get_sync_pulse())
 
     for i, byte in enumerate(bytes_array):
         active_freqs = []
@@ -216,19 +226,18 @@ def decode(filename, rate, byte_count, freqs):
         print(width)
 
         # Find start
-        area_max = 0
-        a_best = 0
-        for a in range(50000):
-            sig = np.abs(signal)
-            w = round(SAMPLE_RATE*0.1)
-            area = np.trapz(sig[a:a+w]) - np.trapz(sig[a+w:a+2*w]) + np.trapz(sig[a+ 2* w:a+3*w]) - np.trapz(sig[a+3*w:a+4*w])
-            if area > area_max:
-                area_max = area
-                a_best = a + 4 * w
 
-        signal = signal[a_best:]
-        # plt.figure('main')
-        # plt.plot(signal)
+        audio = get_sync_pulse()
+        sig = signal[:SAMPLE_RATE*2]
+        conv = np.convolve(audio, sig)
+        i_best = np.argmax(conv)
+
+        plt.figure('sync')
+        plt.plot(sig / max(sig), color='r')
+        plt.plot(conv / max(conv))
+        plt.axvline(x=i_best, color='g')
+
+        signal = signal[i_best:]
 
         A_list = []
         for n in range(N):
@@ -263,48 +272,3 @@ def decode(filename, rate, byte_count, freqs):
         # print(ret)
         return ret
 
-# def decode(filename, rate, bit_count):
-#     print('Decoding')
-#     N = bit_count
-#     with wave.open(filename) as f:
-#         signal = f.readframes(-1)
-#         signal = np.frombuffer(signal, dtype='int16')
-#         signal = np.abs(signal)
-#         # plt.plot(signal)
-#         # plt.show()
-#         width = SAMPLE_RATE/rate
-#         print(width)
-#
-#         # Find start
-#         area_max = 0
-#         a_best = 0
-#         for a in range(50000):
-#             w = round(SAMPLE_RATE*0.1)
-#             area = np.trapz(signal[a:a+w]) - np.trapz(signal[a+w:a+2*w]) + np.trapz(signal[a+ 2* w:a+3*w]) - np.trapz(signal[a+3*w:a+4*w])
-#             if area > area_max:
-#                 area_max = area
-#                 a_best = a + 4 * w
-#
-#         signal = signal[a_best:]
-#         plt.plot(signal)
-#         plt.show()
-#
-#         A_list = []
-#         for n in range(N):
-#             a = round(n*width)
-#             b = round((n+1)*width)
-#             area = np.trapz(signal[a:b])
-#             A_list.append(area)
-#         # print(A_list)
-#
-#         threshold = np.trapz(signal)/len(signal)
-#         print(threshold)
-#
-#         ret = []
-#         for area in A_list:
-#             if area > width * threshold:
-#                 ret.append(1)
-#             else:
-#                 ret.append(0)
-#         # print(ret)
-#         return ret
