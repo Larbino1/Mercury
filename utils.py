@@ -20,7 +20,8 @@ class AudioManager:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def playrec(self, file_to_play, file_to_save, duration, **kwargs):
+    def playrec(self, file_to_play, file_to_save, **kwargs):
+        duration = get_wav_duration(file_to_play)
         frames = round((duration+1) * SAMPLE_RATE)
         data, fs = sf.read('rec/' + file_to_play)
         dataout = sd.playrec(data, fs, 1)
@@ -148,9 +149,23 @@ def chunk(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
+
 def calc_error(correct_data, recieved_data):
     e = 0
     for i in zip(correct_data, recieved_data):
         if i[0] != i[1]:
             e += 1
-    print('{}% error'.format(round(100*e/len(correct_data))))
+    pcnt_error = round(100*e/len(correct_data), 3)
+    print('{}% error'.format(pcnt_error))
+    return pcnt_error
+
+
+def plot_smooth_error_graph(correct_data, recieved_data):
+    plt.figure('errors')
+    errors = np.bitwise_xor(recieved_data, correct_data)
+    sigma = len(correct_data)//1000
+    x = np.linspace(-3*sigma, 3*sigma, 100*sigma)
+    gaussian = 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-x**2 / (2 * sigma**2))
+    smooth = np.convolve(gaussian, errors)
+    plt.plot(smooth)
+    plt.show()

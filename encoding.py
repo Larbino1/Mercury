@@ -25,9 +25,10 @@ def hamming_7_4(bit_array):
 
 
 def encode(filename, bits_array, freqs, rate=25, **kwargs):
-    print('Encoding: {}'.format(bits_array))
+    # print('Encoding: {}'.format(bits_array))
+    print('Encoding')
     total_bits = len(bits_array)
-    print('total_bits = {}'.format(total_bits))
+    # print('total_bits = {}'.format(total_bits))
 
     if kwargs.get('hamming'):
         bits_array = hamming_7_4(bits_array)
@@ -52,4 +53,3 @@ def encode(filename, bits_array, freqs, rate=25, **kwargs):
     audio = append_silence(audio, duration_milliseconds=500)
 
     save_wav(audio, filename)
-    print('DONE')

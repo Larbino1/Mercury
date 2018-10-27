@@ -49,7 +49,7 @@ def decode(filename, bit_rate, bit_count, freqs, **kwargs):
         signal = np.frombuffer(signal, dtype='int16')
         chunk_size = len(freqs)
         bit_width = SAMPLE_RATE / bit_rate
-        print('bit_width {}'.format(bit_width))
+        #print('bit_width {}'.format(bit_width))
 
         # Find start
         audio = get_sync_pulse()
@@ -88,9 +88,9 @@ def decode(filename, bit_rate, bit_count, freqs, **kwargs):
 
         if kwargs.get('plot_main'):
             plt.show()
-        print(A_list)
+        # print(A_list)
         threshold = np.mean(A_list)
-        print('threshold = {}'.format(threshold))
+        # print('threshold = {}'.format(threshold))
 
         # for n in range(N):
         #     plt.figure(n)
