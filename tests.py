@@ -17,8 +17,7 @@ import numpy as np
 # 82 ae 26 09 45 40 13 ae 3e 84 17 c8 2d 7f 07 38
 # 3a a5 cc f9 ''', dtype=np.ubyte, count=100)
 
-l = 1000
+l = 100
 testbytes = np.fromstring(np.random.bytes(l), dtype=np.ubyte, count=l)
-
 
 testbits = np.unpackbits(testbytes)
