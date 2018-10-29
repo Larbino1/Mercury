@@ -46,6 +46,7 @@ class AudioManager:
             plt.show()
 
     def play_wav(self, filename):
+
         data, fs = sf.read('rec/' + filename)
         sd.play(data, fs)
 
@@ -65,33 +66,37 @@ def plot_wav(filename):
         plt.show()
 
 
-def append_silence(audio, duration_milliseconds=500.0, rate = SAMPLE_RATE):
-    """
-    Adding silence is easy - we add zeros to the end of our array
-    """
-    num_samples = duration_milliseconds * (rate / 1000.0)
-
-    for x in range(int(num_samples)):
-        audio.append(0.0)
-
+def append_silence(audio, duration_milliseconds=500.0, rate=SAMPLE_RATE):
+    audio.extend(get_silence(duration_milliseconds))
     return audio
 
 
-def append_sinewave(audio, freq=150.0, duration_milliseconds=500.0, volume=1.0, rate=SAMPLE_RATE):
-    num_samples = duration_milliseconds * (rate / 1000.0)
+def append_sinewave(audio, freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
+    audio.extend(get_sinewave(freq, duration_milliseconds))
+    return audio
 
-    for x in range(int(num_samples)):
+
+def get_sinewave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
+    num_samples = round(duration_milliseconds * (rate / 1000.0))
+    audio = []
+    for x in range(num_samples):
         audio.append(volume * math.sin(2 * math.pi * freq * (x / SAMPLE_RATE)))
+    return audio
 
+def get_silence(duration_milliseconds, rate=SAMPLE_RATE):
+    num_samples = round(duration_milliseconds * (rate / 1000.0))
+    audio = []
+    for x in range(int(num_samples)):
+        audio.append(0.0)
     return audio
 
 
 def append_sinewaves(audio, freqs, duration_milliseconds=500.0, volume=1.0, rate=SAMPLE_RATE):
-    num_samples = int(duration_milliseconds * (rate / 1000.0))
+    num_samples = round(duration_milliseconds * (rate / 1000.0))
     appendage = [0]*num_samples
     if freqs:
         for freq in freqs:
-            sinewave = append_sinewave([], freq=freq, duration_milliseconds=duration_milliseconds)
+            sinewave = get_sinewave(freq, duration_milliseconds)
             appendage = [a + b for a, b in zip(appendage, sinewave)]
         appendage = [a/len(freqs) for a in appendage]
     audio.extend(appendage)
@@ -136,6 +141,7 @@ def get_sync_pulse():
     audio = []
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
     audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
+    print(audio)
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
     audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
@@ -163,9 +169,49 @@ def calc_error(correct_data, recieved_data):
 def plot_smooth_error_graph(correct_data, recieved_data):
     plt.figure('errors')
     errors = np.bitwise_xor(recieved_data, correct_data)
-    sigma = len(correct_data)//1000
+    sigma = 5
     x = np.linspace(-3*sigma, 3*sigma, 100*sigma)
     gaussian = 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-x**2 / (2 * sigma**2))
     smooth = np.convolve(gaussian, errors)
     plt.plot(smooth)
     plt.show()
+
+
+def assert_arrays_equal(array1, array2):
+    for a, b in zip(array1, array2):
+        assert a == b, 'Arrays not equal!'
+
+
+def check_given_rates(data_rates, N):
+    if type(data_rates) is int or type(data_rates) is float:
+        # Check for only one data rate being given and build list
+        print("Assuming uniform data rate per frequency, expected list got '{}'".format(data_rates))
+        rate = data_rates
+        data_rates = [rate/N for _i in range(N)]
+    return data_rates
+
+
+def get_split_stream_cumulative(no_of_bits, bit_rates):
+    B = get_split_stream_lengths(no_of_bits, bit_rates)
+    B_cum = [sum(B[:i + 1]) for i in range(len(B))]
+    assert B_cum[-1] == no_of_bits
+    B_cum.insert(0, 0)
+    return B_cum
+
+
+def get_split_stream_lengths(no_of_bits, bit_rates):
+    total_data_rate = sum(bit_rates)
+    total_bits = no_of_bits
+    B = [round(dr * total_bits / total_data_rate) for dr in bit_rates]
+    assert np.sum(B) == no_of_bits
+    return B
+
+
+def split_data_into_streams(bit_array, data_rates):
+    B_cum = get_split_stream_cumulative(len(bit_array), data_rates)
+    ret = []
+    for n in range(len(B_cum)-1):
+        ret.append(bit_array[B_cum[n]:B_cum[n+1]])
+    return np.array(ret)
+
+
