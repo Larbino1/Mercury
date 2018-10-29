@@ -9,7 +9,7 @@ import decoding as dec
 import encoding as enc
 from consts import *
 
-l = 400
+l = 10000
 
 testbytes = np.fromstring(np.random.bytes(l), dtype=np.ubyte, count=l)
 testbits = np.unpackbits(testbytes)

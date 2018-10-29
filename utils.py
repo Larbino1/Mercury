@@ -77,14 +77,15 @@ def append_sinewave(audio, freq, duration_milliseconds, volume=1.0, rate=SAMPLE_
 
 
 def get_sinewave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
-    num_samples = round(duration_milliseconds * (rate / 1000.0))
+    num_samples = int(duration_milliseconds * (rate / 1000.0))
     audio = []
     for x in range(num_samples):
         audio.append(volume * math.sin(2 * math.pi * freq * (x / SAMPLE_RATE)))
     return audio
 
+
 def get_silence(duration_milliseconds, rate=SAMPLE_RATE):
-    num_samples = round(duration_milliseconds * (rate / 1000.0))
+    num_samples = int(duration_milliseconds * (rate / 1000.0))
     audio = []
     for x in range(int(num_samples)):
         audio.append(0.0)
@@ -92,7 +93,7 @@ def get_silence(duration_milliseconds, rate=SAMPLE_RATE):
 
 
 def append_sinewaves(audio, freqs, duration_milliseconds=500.0, volume=1.0, rate=SAMPLE_RATE):
-    num_samples = round(duration_milliseconds * (rate / 1000.0))
+    num_samples = int(duration_milliseconds * (rate / 1000.0))
     appendage = [0]*num_samples
     if freqs:
         for freq in freqs:
@@ -101,6 +102,38 @@ def append_sinewaves(audio, freqs, duration_milliseconds=500.0, volume=1.0, rate
         appendage = [a/len(freqs) for a in appendage]
     audio.extend(appendage)
     return audio
+
+
+def get_bandpass(freq, sample_rate, half_width=None):
+    if not half_width:
+        half_width = freq/16
+    fL = (freq - half_width)/sample_rate  # Cutoff frequency as a fraction of the sampling rate (in (0, 0.5)).
+    fH = (freq + half_width)/sample_rate  # Cutoff frequency as a fraction of the sampling rate (in (0, 0.5)).
+    b = half_width/sample_rate  # Transition band, as a fraction of the sampling rate (in (0, 0.5)).
+    N = int(np.ceil((4 / b)))
+    if not N % 2: N += 1  # Make sure that N is odd.
+    n = np.arange(N)
+    x1 = 2 * fH * (n - (N - 1) / 2.)
+
+    # Compute a low-pass filter with cutoff frequency fH.
+    hlpf = np.sinc(x1)
+    hlpf *= np.blackman(N)
+    hlpf = hlpf / np.sum(hlpf)
+
+    # Compute a high-pass filter with cutoff frequency fL.
+    x2 = 2 * fL * (n - (N - 1) / 2.)
+    hhpf = np.sinc(x2)
+    hhpf *= np.blackman(N)
+    hhpf = hhpf / np.sum(hhpf)
+    hhpf = -hhpf
+    centre = (N - 1) // 2
+    hhpf[centre] += 1
+
+    # Convolve both filters.
+    h = np.convolve(hlpf, hhpf)
+    plt.plot(h)
+    plt.draw()
+    return h
 
 
 def save_wav(audio, file_name):
@@ -141,7 +174,6 @@ def get_sync_pulse():
     audio = []
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
     audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
-    print(audio)
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
     audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
     audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
@@ -162,19 +194,30 @@ def calc_error(correct_data, recieved_data):
         if i[0] != i[1]:
             e += 1
     pcnt_error = round(100*e/len(correct_data), 3)
-    print('{}% error'.format(pcnt_error))
     return pcnt_error
+
+
+def calc_error_per_freq(sent_data, recieved_data, freqs, bit_rates):
+    sent_streams = split_data_into_streams(sent_data, bit_rates)
+    recieved_streams = split_data_into_streams(recieved_data, bit_rates)
+    for freq, sent_dta, recieved_dta in zip(freqs, sent_streams, recieved_streams):
+        error = calc_error(sent_dta, recieved_dta)
+        print('Freq:{:8}, {}% error'.format(freq, error))
+    error = calc_error(sent_data, recieved_data)
+    print('TOTAL {}% error'.format(error))
 
 
 def plot_smooth_error_graph(correct_data, recieved_data):
     plt.figure('errors')
     errors = np.bitwise_xor(recieved_data, correct_data)
-    sigma = 5
+    sigma = 1
     x = np.linspace(-3*sigma, 3*sigma, 100*sigma)
-    gaussian = 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-x**2 / (2 * sigma**2))
+    gaussian = (2*np.pi)/(sigma * np.sqrt(2 * np.pi)) * np.exp(-x**2 / (2 * sigma**2))
     smooth = np.convolve(gaussian, errors)
     plt.plot(smooth)
-    plt.show()
+    plt.plot(10*errors)
+    plt.axis((0, len(correct_data), 0, 60))
+    plt.draw()
 
 
 def assert_arrays_equal(array1, array2):
@@ -203,6 +246,8 @@ def get_split_stream_lengths(no_of_bits, bit_rates):
     total_data_rate = sum(bit_rates)
     total_bits = no_of_bits
     B = [round(dr * total_bits / total_data_rate) for dr in bit_rates]
+    if np.sum(B) != no_of_bits:
+        B[-1] = total_bits - np.sum(B[:-1])
     assert np.sum(B) == no_of_bits
     return B
 
