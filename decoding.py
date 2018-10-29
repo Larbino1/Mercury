@@ -48,6 +48,7 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
 
     if kwargs.get('hamming'):
         bit_count = bit_count * 7//4
+        bit_count = bit_count * 7//4
 
     with wave.open('rec/' + filename) as f:
         signal = f.readframes(-1)
@@ -124,6 +125,7 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
             plt.draw()
 
         if kwargs.get('hamming'):
+            ret = hamming_7_4(ret)
             ret = hamming_7_4(ret)
 
         return ret
