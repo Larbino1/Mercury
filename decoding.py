@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tests
 
+import encoding as enc
+
 
 def hamming_7_4(bit_array):
     print("decoding hamming 7_4,\trecieved {} bits".format(len(bit_array)))
@@ -48,7 +50,10 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
 
     if kwargs.get('hamming'):
         bit_count = bit_count * 7//4
-        bit_count = bit_count * 7//4
+        # Test data for plotting
+        test_bit_streams = split_data_into_streams(enc.hamming_7_4(tests.testbits), bit_rates)
+    else:
+        test_bit_streams = split_data_into_streams(tests.testbits, bit_rates)
 
     with wave.open('rec/' + filename) as f:
         signal = f.readframes(-1)
@@ -73,9 +78,6 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
             plt.figure('main')
             plt.plot(signal)
 
-        # Test data for plotting
-        test_bit_streams = split_data_into_streams(tests.testbits, bit_rates)
-
         # Convolve and store conv values at bit boundaries
         stream_lengths = get_split_stream_lengths(bit_count, bit_rates)
         conv_values = {freq: [] for freq in freqs}
@@ -83,7 +85,7 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
         for stream_length, freq, rate, test_bit_stream in zip(stream_lengths, freqs, bit_rates, test_bit_streams):
             # bit_width = SAMPLE_RATE / rate
             # TODO proper syncing at start
-            bit_ctrs = [round((n+0.4) * SAMPLE_RATE/rate)for n in range(stream_length)]
+            bit_ctrs = [round((n+0.4) * SAMPLE_RATE/rate) for n in range(stream_length)]
             duration = 1000 / rate
             filter = get_bandpass(freq, SAMPLE_RATE)
             conv = np.convolve(filter, signal, mode='same')
@@ -91,14 +93,14 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
             if kwargs.get('plot_conv'):
                 plt.figure('conv for freq = {}'.format(str(freq)))
                 plt.plot(conv)
+                for i, bit_ctr in enumerate(bit_ctrs):
+                    plt.figure('conv for freq = {}'.format(str(freq)))
+                    print(stream_length)
+                    if test_bit_stream[i]:
+                        plt.axvline(x=bit_ctr, color='g')
+                    else:
+                        plt.axvline(x=bit_ctr, color='r')
             for i, bit_ctr in enumerate(bit_ctrs):
-                if kwargs.get('plot_conv'):
-                    for i, bit_ctr in enumerate(bit_ctrs):
-                        plt.figure('conv for freq = {}'.format(str(freq)))
-                        if test_bit_stream[i]:
-                            plt.axvline(x=bit_ctr, color='g')
-                        else:
-                            plt.axvline(x=bit_ctr, color='r')
                 # TODO this is where QAM could come in, but sync issues
                 conv_values[freq].append(np.sum(abs(conv[bit_ctr-3:bit_ctr+3])))
             plot_main_flag = False
@@ -125,7 +127,6 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
             plt.draw()
 
         if kwargs.get('hamming'):
-            ret = hamming_7_4(ret)
             ret = hamming_7_4(ret)
 
         return ret

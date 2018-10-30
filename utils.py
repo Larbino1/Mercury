@@ -46,7 +46,6 @@ class AudioManager:
             plt.show()
 
     def play_wav(self, filename):
-
         data, fs = sf.read('rec/' + filename)
         sd.play(data, fs)
 
@@ -159,7 +158,7 @@ def save_wav(audio, file_name):
         # use the floating point -1.0 to 1.0 data directly in a WAV file but not
         # obvious how to do that using the wave module in python.
         for sample in audio:
-            wav_file.writeframes(struct.pack('h', int( sample * 32767.0 )))
+            wav_file.writeframes(struct.pack('h', int(sample * 32767.0)))
 
 
 def get_wav_duration(filename):

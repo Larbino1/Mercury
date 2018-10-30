@@ -31,7 +31,6 @@ def encode(filename, bits_array, freqs, bit_rates, **kwargs):
 
     if kwargs.get('hamming'):
         bits_array = hamming_7_4(bits_array)
-        bits_array = hamming_7_4(bits_array)
 
     # Add leading silence and sync pulse
     audio = []
