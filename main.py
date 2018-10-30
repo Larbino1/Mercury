@@ -19,7 +19,7 @@ def single_test(freqs, bit_rates, send_bits=tests.testbits, **kwargs):
     print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
     print('bit_rates: {}'.format(bit_rates))
 
-    hamming = True
+    hamming = False
     enc.encode('bin.wav', send_bits, freqs, bit_rates, hamming=hamming, plot_audio=False)
     am.playrec('bin.wav', '_bin.wav', plot_ideal_signal=False)
     ans = dec.decode('_bin.wav', bit_rates, len(send_bits), freqs, hamming=hamming, plot_sync=False, plot_main=False, plot_conv=True)
@@ -42,7 +42,7 @@ def transmit(freqs, bit_rates, send_bits, **kwargs):
     print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
     print('bit_rates: {}'.format(bit_rates))
 
-    hamming = True
+    hamming = False
     enc.encode('bin.wav', send_bits, freqs, bit_rates, hamming=hamming, plot_audio=False)
 
     print('Duration: {}'.format(utils.get_wav_duration('bin.wav')))
@@ -50,6 +50,7 @@ def transmit(freqs, bit_rates, send_bits, **kwargs):
 
     input('>>Press enter to play')
     am.play_wav('bin.wav')
+    am.sd.wait()
 
 
 def recieve(freqs, bit_rates, **kwargs):
@@ -57,12 +58,14 @@ def recieve(freqs, bit_rates, **kwargs):
     print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
     print('bit_rates: {}'.format(bit_rates))
 
-    hamming = True
+    hamming = False
 
-    t = input('>>Enter recording duration: ')
-    no_of_bits = input('>>Enter number of bits: ')
+    t = float(input('>>Enter recording duration: '))
+    no_of_bits = int(input('>>Enter number of bits: '))
     input('>>Press enter to start')
     am.record('_bin.wav', t)
+    am.sd.wait()
+
     ans = dec.decode('_bin.wav', bit_rates, no_of_bits, freqs, hamming=hamming, plot_sync=False, plot_main=False, plot_conv=False)
 
     return ans
@@ -72,14 +75,16 @@ def recieve(freqs, bit_rates, **kwargs):
 #     b = np.array(bytearray(f.read()))
 #     bits = np.unpackbits(b)
 
-freqs = [4000 + 2000*i for i in range(8)]
-data_rates = [(400 + 200*i)for i in range(8)]
-freqs.remove(16000)
-data_rates.remove(1600)
+freqs = [4000]
+data_rates = [40]
+# freqs.remove(16000)
+# data_rates.remove(1600)
 print('{} bytes/s'.format(np.sum(data_rates)/8))
-recieved_bits = single_test(freqs, data_rates, tests.testbits, plot_error_graph=True)
+# recieved_bits = single_test(freqs, data_rates, tests.testbits, plot_error_graph=True)
+transmit(freqs, data_rates, tests.testbits)
+# recieve(freqs, data_rates)
 
-recieved_bytes = np.packbits(recieved_bits)
+# recieved_bytes = np.packbits(recieved_bits)
 # with open('img2.jpg', 'wb') as f:
 #     f.write(recieved_bytes)
 

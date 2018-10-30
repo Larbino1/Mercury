@@ -37,7 +37,7 @@ class AudioManager:
         print("Recording to {} for {} seconds".format(filename, t))
         frames = round(t * SAMPLE_RATE)
         data = sd.rec(frames, SAMPLE_RATE, channels=1)
-        time.sleep(t)
+        time.sleep(t+1)
         sf.write('rec/' + filename, data, SAMPLE_RATE)
         if plot:
             print("Showing plot of recorded data")
