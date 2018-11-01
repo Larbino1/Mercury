@@ -87,7 +87,7 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
             # TODO proper syncing at start
             bit_ctrs = [round((n+0.4) * SAMPLE_RATE/rate) for n in range(stream_length)]
             duration = 1000 / rate
-            filter = get_bandpass(freq, SAMPLE_RATE)
+            filter = get_bandpass(freq, SAMPLE_RATE, **kwargs)
             conv = np.convolve(filter, signal, mode='same')
             # conv = conv[len(filter)//2:]
             if kwargs.get('plot_conv'):
@@ -95,7 +95,6 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
                 plt.plot(conv)
                 for i, bit_ctr in enumerate(bit_ctrs):
                     plt.figure('conv for freq = {}'.format(str(freq)))
-                    print(stream_length)
                     if test_bit_stream[i]:
                         plt.axvline(x=bit_ctr, color='g')
                     else:

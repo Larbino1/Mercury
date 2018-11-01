@@ -9,12 +9,12 @@ import decoding as dec
 import encoding as enc
 from consts import *
 
-# l = 100
-#
-# testbytes = np.fromstring(np.random.bytes(l), dtype=np.ubyte, count=l)
-# testbits = np.unpackbits(testbytes)
-testbytes = np.fromstring('Hello World', dtype=np.ubyte)
+l = 100
+
+testbytes = np.fromstring(np.random.bytes(l), dtype=np.ubyte, count=l)
 testbits = np.unpackbits(testbytes)
+# testbytes = np.fromstring('Hello World', dtype=np.ubyte)
+# testbits = np.unpackbits(testbytes)
 
 
 def hamming_test():

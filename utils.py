@@ -6,6 +6,7 @@ import time
 import numpy as np
 import struct
 import matplotlib.pyplot as plt
+import scipy.signal as signal
 
 from consts import *
 
@@ -103,9 +104,9 @@ def append_sinewaves(audio, freqs, duration_milliseconds=500.0, volume=1.0, rate
     return audio
 
 
-def get_bandpass(freq, sample_rate, half_width=None):
+def get_bandpass(freq, sample_rate, half_width=None, **kwargs):
     if not half_width:
-        half_width = freq/16
+        half_width = freq/20
     fL = (freq - half_width)/sample_rate  # Cutoff frequency as a fraction of the sampling rate (in (0, 0.5)).
     fH = (freq + half_width)/sample_rate  # Cutoff frequency as a fraction of the sampling rate (in (0, 0.5)).
     b = half_width/sample_rate  # Transition band, as a fraction of the sampling rate (in (0, 0.5)).
@@ -130,8 +131,12 @@ def get_bandpass(freq, sample_rate, half_width=None):
 
     # Convolve both filters.
     h = np.convolve(hlpf, hhpf)
-    plt.plot(h)
-    plt.draw()
+    if kwargs.get('plot_filters'):
+        plt.figure('Filters')
+        plt.plot(h)
+        plt.draw()
+
+        mag_plot(h)
     return h
 
 
@@ -259,3 +264,12 @@ def split_data_into_streams(bit_array, data_rates):
     return np.array(ret)
 
 
+#Magnitude plot
+def mag_plot(b,a=1):
+    w,h = signal.freqz(b,a)
+    h_dB = abs(h)
+    plt.figure('Freq response of filters')
+    plt.plot(w,h_dB)
+    plt.ylabel("Magnitude")
+    plt.xlabel('Normalized Frequency')
+    plt.title('Frequency response')
