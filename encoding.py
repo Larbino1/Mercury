@@ -41,17 +41,10 @@ def encode(filename, bits_array, freqs, bit_rates, **kwargs):
     bit_rates = check_given_rates(bit_rates, len(freqs))
     assert len(freqs) == len(bit_rates), 'Must have same number of specified frequencies and data rates'
 
-    # Build data frame
-    audio_data_frame = None
-    bit_streams = split_data_into_streams(bits_array, bit_rates)
-    for stream, freq, rate in zip(bit_streams, freqs, bit_rates):
-        audio_stream = build_1d_audio_array(stream, freq, rate)
-        if not audio_data_frame:
-            audio_data_frame = audio_stream
-        else:
-            audio_data_frame = [a + b for a, b in zip(audio_data_frame, audio_stream)]
-    audio_data_frame = [a / len(freqs) for a in audio_data_frame]
-    audio.extend(audio_data_frame)
+    if kwargs.get('psk'):
+        audio = encode_psk(audio, bits_array, freqs, bit_rates, **kwargs)
+    else:
+        audio = encode_simple(audio, bits_array, freqs, bit_rates, **kwargs)
 
     # Add trailing silence
     audio.extend(get_silence(duration_milliseconds=500))
@@ -64,7 +57,63 @@ def encode(filename, bits_array, freqs, bit_rates, **kwargs):
     save_wav(audio, filename)
 
 
-def build_1d_audio_array(bit_array, frequency, data_rate):
+def encode_psk(audio, bits_array, freqs, bit_rates, **kwargs):
+    # Build data frame
+    audio_data_frame = None
+    bit_streams = split_data_into_streams(bits_array, bit_rates)
+    for stream, freq, rate in zip(bit_streams, freqs, bit_rates):
+        audio_stream = build_psk_1d_audio_array(stream, freq, rate)
+        if not audio_data_frame:
+            audio_data_frame = audio_stream
+        else:
+            audio_data_frame = [a + b for a, b in zip(audio_data_frame, audio_stream)]
+    audio_data_frame = [a / len(freqs) for a in audio_data_frame]
+    audio.extend(audio_data_frame)
+    return audio
+
+
+def encode_simple(audio, bits_array, freqs, bit_rates, **kwargs):
+    # Build data frame
+    audio_data_frame = None
+    bit_streams = split_data_into_streams(bits_array, bit_rates)
+    for stream, freq, rate in zip(bit_streams, freqs, bit_rates):
+        audio_stream = build_simple_1d_audio_array(stream, freq, rate)
+        if not audio_data_frame:
+            audio_data_frame = audio_stream
+        else:
+            audio_data_frame = [a + b for a, b in zip(audio_data_frame, audio_stream)]
+    audio_data_frame = [a / len(freqs) for a in audio_data_frame]
+    audio.extend(audio_data_frame)
+    return audio
+
+
+def build_psk_1d_audio_array(bit_array, frequency, data_rate):
+    audio = []
+    duration = 1000 / data_rate
+    loss_of_sync_per_bit = SAMPLE_RATE / data_rate % 1
+    # e.g value of 0.1 means we should append 40.1 samples but only append 40
+    # Keep track of total lag, and compensate with added samples
+    bit_array = np.insert(bit_array,0, [0,0,0,1,1,0,1,1])
+    cumulative_lag = 0
+    chunks = chunk(bit_array, 2)
+    for bit_pair in chunks:
+        b1, b2 = bit_pair
+        if b1 and b2:
+            audio.extend(get_sinewave(frequency, duration))
+        elif b1:
+            audio.extend(get_coswave(frequency, duration))
+        elif b2:
+            audio.extend(get_neg_sinewave(frequency, duration))
+        else:
+            audio.extend(get_neg_coswave(frequency, duration))
+        cumulative_lag += loss_of_sync_per_bit
+        if cumulative_lag > 1:
+            audio.append(audio[-1])
+            cumulative_lag -= 1
+    return audio
+
+
+def build_simple_1d_audio_array(bit_array, frequency, data_rate):
     audio = []
     duration = 1000 / data_rate
     loss_of_sync_per_bit = SAMPLE_RATE / data_rate % 1

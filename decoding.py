@@ -62,14 +62,15 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
 
         # Find start
         sync_pulse = get_sync_pulse()
+        # sync_pulse *= np.blackman(len(sync_pulse))
         sig = signal[:SAMPLE_RATE*2]
-        conv = np.convolve(sync_pulse, sig)
+        conv = np.convolve(sync_pulse, sig, mode='full')
         i_best = np.argmax(conv)
         if kwargs.get('plot_sync'):
             # Plot sync
             plt.figure('sync')
             # plt.plot(conv / max(conv), color='y')
-            plt.plot(sig / max(sig), color='r')
+            plt.plot(sig, color='r')
             plt.axvline(x=i_best, color='g')
         signal = signal[i_best:]
 
@@ -77,55 +78,121 @@ def decode(filename, bit_rates, bit_count, freqs, **kwargs):
         if kwargs.get('plot_main'):
             plt.figure('main')
             plt.plot(signal)
-
-        # Convolve and store conv values at bit boundaries
-        stream_lengths = get_split_stream_lengths(bit_count, bit_rates)
-        conv_values = {freq: [] for freq in freqs}
-        plot_main_flag = True
-        for stream_length, freq, rate, test_bit_stream in zip(stream_lengths, freqs, bit_rates, test_bit_streams):
-            # bit_width = SAMPLE_RATE / rate
-            # TODO proper syncing at start
-            bit_ctrs = [round((n+0.4) * SAMPLE_RATE/rate) for n in range(stream_length)]
-            duration = 1000 / rate
-            filter = get_bandpass(freq, SAMPLE_RATE, **kwargs)
-            conv = np.convolve(filter, signal, mode='same')
-            # conv = conv[len(filter)//2:]
-            if kwargs.get('plot_conv'):
-                plt.figure('conv for freq = {}'.format(str(freq)))
-                plt.plot(conv)
-                for i, bit_ctr in enumerate(bit_ctrs):
-                    plt.figure('conv for freq = {}'.format(str(freq)))
-                    if test_bit_stream[i]:
-                        plt.axvline(x=bit_ctr, color='g')
-                    else:
-                        plt.axvline(x=bit_ctr, color='r')
-            for i, bit_ctr in enumerate(bit_ctrs):
-                # TODO this is where QAM could come in, but sync issues
-                conv_values[freq].append(np.sum(abs(conv[bit_ctr-3:bit_ctr+3])))
-            plot_main_flag = False
-
-        if kwargs.get('plot_conv') or kwargs.get('plot_main'):
             plt.draw()
 
-        # Thresholding
-        bit_streams = {freq: [] for freq in freqs}
-        for freq in freqs:
-            threshold = np.mean(conv_values[freq])
-            for conv_value in conv_values[freq]:
-                if conv_value > threshold:
-                    bit_streams[freq].append(1)
-                else:
-                    bit_streams[freq].append(0)
-
-        ret = []
-        for stream in bit_streams.values():
-            ret.extend(stream)
-
-        if kwargs.get('plot_main'):
-            plt.figure('main')
-            plt.draw()
+        if kwargs.get('psk'):
+            ret = decode_psk(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs)
+        else:
+            ret = decode_simple(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs)
 
         if kwargs.get('hamming'):
             ret = hamming_7_4(ret)
 
         return ret
+
+
+def decode_psk(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs):
+    # Convolve and store conv values at bit boundaries
+    stream_lengths = get_split_stream_lengths(bit_count, bit_rates)
+    symbol_streams = {freq: [] for freq in freqs}
+    bit_streams = dict()
+    for stream_length, freq, rate, test_bit_stream in zip(stream_lengths, freqs, bit_rates, test_bit_streams):
+        bit_pair_centres = [round((n+0.5) * SAMPLE_RATE/rate) for n in range((stream_length+8)//2)]
+        phase_shift = round(SAMPLE_RATE/freq/4)
+        print('phaseshift = {}'.format(phase_shift))
+        filter = get_bandpass(freq, SAMPLE_RATE, **kwargs)
+        conv = np.convolve(filter, signal, mode='same')
+        if kwargs.get('plot_conv'):
+            pass
+            plt.figure('conv for freq = {}'.format(str(freq)))
+            plt.plot(conv)
+            for i, bit_ctr in enumerate(bit_pair_centres):
+                plt.figure('conv for freq = {}'.format(str(freq)))
+                plt.axvline(x=bit_ctr, color='g')
+                plt.axvline(x=bit_ctr + phase_shift, color='r')
+
+        for i, bit_ctr in enumerate(bit_pair_centres):
+            sin_mag = conv[bit_ctr]
+            cos_mag = conv[bit_ctr+phase_shift]
+            if sin_mag > -cos_mag:
+                if sin_mag > cos_mag:
+                    symbol_streams[freq].append('a')
+                else:
+                    symbol_streams[freq].append('b')
+            else:
+                if sin_mag < cos_mag:
+                    symbol_streams[freq].append('c')
+                else:
+                    symbol_streams[freq].append('d')
+
+        print(symbol_streams)
+        for y in range(4):
+            for z in range(4):
+                if y != z:
+                    if symbol_streams[freq][y] == symbol_streams[freq][z]:
+                        raise Exception('Same symbol mapped twice')
+
+        symbol_map = dict()
+        symbol_map[symbol_streams[freq][0]] = [0, 0]
+        symbol_map[symbol_streams[freq][1]] = [0, 1]
+        symbol_map[symbol_streams[freq][2]] = [1, 0]
+        symbol_map[symbol_streams[freq][3]] = [1, 1]
+
+        bit_streams[freq] = []
+        for symbol in symbol_streams[freq][4:]:
+            bit_streams[freq].extend(symbol_map[symbol])
+
+    if kwargs.get('plot_conv') or kwargs.get('plot_main'):
+        plt.draw()
+
+    ret = []
+    for stream in bit_streams.values():
+        ret.extend(stream)
+    return ret
+
+
+def decode_simple(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs):
+    # Convolve and store conv values at bit boundaries
+    stream_lengths = get_split_stream_lengths(bit_count, bit_rates)
+    conv_values = {freq: [] for freq in freqs}
+    plot_main_flag = True
+    for stream_length, freq, rate, test_bit_stream in zip(stream_lengths, freqs, bit_rates, test_bit_streams):
+        # bit_width = SAMPLE_RATE / rate
+        # TODO proper syncing at start
+        bit_ctrs = [round((n+0.4) * SAMPLE_RATE/rate) for n in range(stream_length)]
+        duration = 1000 / rate
+        filter = get_bandpass(freq, SAMPLE_RATE, **kwargs)
+        conv = np.convolve(filter, signal, mode='same')
+        # conv = conv[len(filter)//2:]
+        if kwargs.get('plot_conv'):
+            plt.figure('conv for freq = {}'.format(str(freq)))
+            plt.plot(conv)
+            for i, bit_ctr in enumerate(bit_ctrs):
+                plt.figure('conv for freq = {}'.format(str(freq)))
+                if test_bit_stream[i]:
+                    plt.axvline(x=bit_ctr, color='g')
+                else:
+                    plt.axvline(x=bit_ctr, color='r')
+        for i, bit_ctr in enumerate(bit_ctrs):
+            # TODO this is where QAM could come in, but sync issues
+            print(conv[bit_ctr])
+            conv_values[freq].append(np.sum(abs(conv[bit_ctr-3:bit_ctr+3])))
+        plot_main_flag = False
+
+    if kwargs.get('plot_conv') or kwargs.get('plot_main'):
+        plt.draw()
+
+    # Thresholding
+    bit_streams = {freq: [] for freq in freqs}
+    for freq in freqs:
+        threshold = np.mean(conv_values[freq])
+        for conv_value in conv_values[freq]:
+            if conv_value > threshold:
+                bit_streams[freq].append(1)
+            else:
+                bit_streams[freq].append(0)
+
+    ret = []
+    for stream in bit_streams.values():
+        ret.extend(stream)
+    return ret

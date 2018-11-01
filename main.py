@@ -80,13 +80,16 @@ def send_jpg(freqs, bit_rates, filename, savename, **kwargs):
         f.write(recieved_bytes)
 
 
-scale_factor = 1.185
-freqs = [2000 * scale_factor**i for i in range(13)]
-data_rates = [200 * scale_factor**i for i in range(13)]
-print('{} bytes/s'.format(np.sum(data_rates)/8))
+# scale_factor = 1.185
+# freqs = [2000 * scale_factor**i for i in range(13)]
+# data_rates = [200 * scale_factor**i for i in range(13)]
+# print('{} bytes/s'.format(np.sum(data_rates)/8))
 
-# recieved_bits = single_test(freqs, data_rates, tests.testbits, plot_error_graph=True)
-send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=True, plot_filters=True)
+freqs = [1000]
+data_rates = [10]
+
+recieved_bits = single_test(freqs, data_rates, tests.testbits, plot_audio=False, psk=True, plot_sync=False, plot_conv=True)
+# send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=True, plot_filters=True)
 # transmit(freqs, data_rates, tests.testbits)
 # recieve(freqs, data_rates)
 

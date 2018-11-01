@@ -84,6 +84,22 @@ def get_sinewave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
     return audio
 
 
+def get_neg_sinewave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
+    return [-i for i in get_sinewave(freq, duration_milliseconds, volume, rate)]
+
+
+def get_coswave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
+    num_samples = int(duration_milliseconds * (rate / 1000.0))
+    audio = []
+    for x in range(num_samples):
+        audio.append(volume * math.cos(2 * math.pi * freq * (x / SAMPLE_RATE)))
+    return audio
+
+
+def get_neg_coswave(freq, duration_milliseconds, volume=1.0, rate=SAMPLE_RATE):
+    return [-i for i in get_coswave(freq, duration_milliseconds, volume, rate)]
+
+
 def get_silence(duration_milliseconds, rate=SAMPLE_RATE):
     num_samples = int(duration_milliseconds * (rate / 1000.0))
     audio = []
@@ -175,12 +191,30 @@ def get_wav_duration(filename):
 
 
 def get_sync_pulse():
+    sync_pulse = get_sync_pulse2()
+    # sync_pulse *= np.blackman(len(sync_pulse))
+    return sync_pulse
+
+
+def get_sync_pulse1():
     audio = []
-    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
-    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
-    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
-    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_WIDTH)
-    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_WIDTH, freq=SYNC_PULSE_FREQ)
+    for i in range(SYNC_PULSE_PIPS):
+        audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH, freq=SYNC_PULSE_FREQ)
+        audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH)
+    return audio
+
+
+def get_sync_pulse2():
+    num_samples = int(10 * (SAMPLE_RATE / 1000.0))
+    audio = []
+    volume = 1
+    X = np.linspace(-5*np.pi, 5*np.pi, num_samples)
+    for x in X:
+        audio.append(np.sinc(x))
+    audio = [(1-abs(i)) * np.sign(i) for i in audio]
+    plt.figure('syncpulse')
+    plt.plot(audio)
+    plt.draw()
     return audio
 
 
