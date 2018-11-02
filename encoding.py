@@ -93,19 +93,20 @@ def build_psk_1d_audio_array(bit_array, frequency, data_rate):
     loss_of_sync_per_bit = SAMPLE_RATE / data_rate % 1
     # e.g value of 0.1 means we should append 40.1 samples but only append 40
     # Keep track of total lag, and compensate with added samples
-    bit_array = np.insert(bit_array,0, [0,0,0,1,1,0,1,1])
+    bit_array = np.insert(bit_array, 0, [1, 1, 1, 0, 0, 1, 0, 0])
+    # bit_array = np.insert(bit_array, 0, [0, 0, 0, 1, 1, 0, 1, 1])
     cumulative_lag = 0
-    chunks = chunk(bit_array, 2)
+    chunks = chunk(bit_array, 2, pad=False)
     for bit_pair in chunks:
         b1, b2 = bit_pair
         if b1 and b2:
-            audio.extend(get_sinewave(frequency, duration))
-        elif b1:
-            audio.extend(get_coswave(frequency, duration))
-        elif b2:
-            audio.extend(get_neg_sinewave(frequency, duration))
-        else:
             audio.extend(get_neg_coswave(frequency, duration))
+        elif b1:
+            audio.extend(get_neg_sinewave(frequency, duration))
+        elif b2:
+            audio.extend(get_coswave(frequency, duration))
+        else:
+            audio.extend(get_sinewave(frequency, duration))
         cumulative_lag += loss_of_sync_per_bit
         if cumulative_lag > 1:
             audio.append(audio[-1])

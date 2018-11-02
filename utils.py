@@ -10,6 +10,7 @@ import scipy.signal as signal
 
 from consts import *
 
+
 class AudioManager:
     def __init__(self):
         self.sd = sd
@@ -191,16 +192,18 @@ def get_wav_duration(filename):
 
 
 def get_sync_pulse():
-    sync_pulse = get_sync_pulse2()
+    sync_pulse = get_sync_pulse1()
     # sync_pulse *= np.blackman(len(sync_pulse))
     return sync_pulse
 
 
 def get_sync_pulse1():
     audio = []
-    for i in range(SYNC_PULSE_PIPS):
-        audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH, freq=SYNC_PULSE_FREQ)
-        audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH)
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH, freq=SYNC_PULSE_FREQ)
+    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH)
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH, freq=SYNC_PULSE_FREQ)
+    audio = append_silence(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH)
+    audio = append_sinewave(audio, duration_milliseconds=SYNC_PULSE_PIP_WIDTH, freq=SYNC_PULSE_FREQ)
     return audio
 
 
@@ -218,9 +221,22 @@ def get_sync_pulse2():
     return audio
 
 
-def chunk(l, n):
+def chunk(l, n, pad = False):
     """Yield successive n-sized chunks from l."""
-    if len(l)%n !=0:
+    if pad:
+        data_bit_count = int(np.ceil(np.log2(n)))
+        no_of_padding_bits = (len(l) + data_bit_count) % n
+        format_str = "{:0>" + str(data_bit_count) + "b}"
+        data_bits = format_str.format(no_of_padding_bits)
+        # print("chunking {} bits into {}s".format(len(l), n))
+        # print("Adding data bits {} ".format(data_bits))
+        # print(padding_bit_count)
+        for i in data_bits[::-1]:
+            l = np.insert(l, 0, int(i))
+        for i in range(no_of_padding_bits):
+            l = np.append(l, 0)
+
+    if len(l)%n != 0:
         raise Exception('Number of bits must be divisible by {}'.format(n))
     for i in range(0, len(l), n):
         yield l[i:i + n]

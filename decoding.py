@@ -97,9 +97,9 @@ def decode_psk(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs):
     symbol_streams = {freq: [] for freq in freqs}
     bit_streams = dict()
     for stream_length, freq, rate, test_bit_stream in zip(stream_lengths, freqs, bit_rates, test_bit_streams):
-        bit_pair_centres = [round((n+0.5) * SAMPLE_RATE/rate) for n in range((stream_length+8)//2)]
+        bit_pair_centres = [round((n + 0.4) * SAMPLE_RATE/rate) for n in range((stream_length+8)//2)]
         phase_shift = round(SAMPLE_RATE/freq/4)
-        print('phaseshift = {}'.format(phase_shift))
+        # print('phaseshift = {}'.format(phase_shift))
         filter = get_bandpass(freq, SAMPLE_RATE, **kwargs)
         conv = np.convolve(filter, signal, mode='same')
         if kwargs.get('plot_conv'):
@@ -111,32 +111,80 @@ def decode_psk(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs):
                 plt.axvline(x=bit_ctr, color='g')
                 plt.axvline(x=bit_ctr + phase_shift, color='r')
 
+        magnitudes = []
         for i, bit_ctr in enumerate(bit_pair_centres):
             sin_mag = conv[bit_ctr]
             cos_mag = conv[bit_ctr+phase_shift]
-            if sin_mag > -cos_mag:
-                if sin_mag > cos_mag:
-                    symbol_streams[freq].append('a')
-                else:
-                    symbol_streams[freq].append('b')
-            else:
-                if sin_mag < cos_mag:
-                    symbol_streams[freq].append('c')
-                else:
-                    symbol_streams[freq].append('d')
+            magnitudes.append((sin_mag, cos_mag))
+            if kwargs.get('plot_complex'):
+                if i < 4:
+                    plt.figure('complex1')
+                    plt.xlabel('R')
+                    plt.ylabel('I')
+                    plt.title('Complex points')
+                    plt.grid(True)
+                    plt.axes().set_aspect('equal', 'datalim')
+                    plt.plot(sin_mag, cos_mag, 'rx')
 
-        print(symbol_streams)
+        a = []
+        for sin_mag, cos_mag in magnitudes[:4]:
+            a.append([sin_mag, cos_mag])
+        a = np.asarray(a)
+        b = np.asarray([[0, -1], [-1, 0], [0, 1], [1, 0]])
+        x, _c, _d, _e = np.linalg.lstsq(a, b)
+        magnitudes = np.matmul(magnitudes, x)
+        # print(a)
+        # print(np.matmul(a, x))
+
+        if kwargs.get('plot_complex'):
+            plt.figure('complex')
+            plt.axes().set_aspect('equal', 'datalim')
+            plt.figure('complex1')
+            plt.axes().set_aspect('equal', 'datalim')
+            for i, mags in enumerate(magnitudes):
+                sin_mag, cos_mag = mags
+                plt.figure('complex')
+                if i < 4:
+                    plt.figure('complex1')
+                if sin_mag > cos_mag:
+                    if cos_mag > -sin_mag:
+                        symbol_streams[freq].append('a')
+                        plt.plot(sin_mag, cos_mag, 'rx')
+                    else:
+                        symbol_streams[freq].append('b')
+                        plt.plot(sin_mag, cos_mag, 'gx')
+                else:
+                    if cos_mag > -sin_mag:
+                        symbol_streams[freq].append('c')
+                        plt.plot(sin_mag, cos_mag, 'bx')
+                    else:
+                        symbol_streams[freq].append('d')
+                        plt.plot(sin_mag, cos_mag, 'yx')
+        else:
+            for sin_mag, cos_mag in magnitudes:
+                if sin_mag > cos_mag:
+                    if cos_mag > -sin_mag:
+                        symbol_streams[freq].append('a')
+                    else:
+                        symbol_streams[freq].append('b')
+                else:
+                    if cos_mag > -sin_mag:
+                        symbol_streams[freq].append('c')
+                    else:
+                        symbol_streams[freq].append('d')
+
         for y in range(4):
             for z in range(4):
                 if y != z:
                     if symbol_streams[freq][y] == symbol_streams[freq][z]:
+                        plt.show()
                         raise Exception('Same symbol mapped twice')
 
         symbol_map = dict()
-        symbol_map[symbol_streams[freq][0]] = [0, 0]
-        symbol_map[symbol_streams[freq][1]] = [0, 1]
-        symbol_map[symbol_streams[freq][2]] = [1, 0]
-        symbol_map[symbol_streams[freq][3]] = [1, 1]
+        symbol_map[symbol_streams[freq][0]] = [1, 1]
+        symbol_map[symbol_streams[freq][1]] = [1, 0]
+        symbol_map[symbol_streams[freq][2]] = [0, 1]
+        symbol_map[symbol_streams[freq][3]] = [0, 0]
 
         bit_streams[freq] = []
         for symbol in symbol_streams[freq][4:]:
@@ -145,9 +193,15 @@ def decode_psk(signal, bit_rates, bit_count, freqs, test_bit_streams, **kwargs):
     if kwargs.get('plot_conv') or kwargs.get('plot_main'):
         plt.draw()
 
+    # # Remove padding bits
+    # for freq, stream in bit_streams:
+    #     no_of_padding_bits = int(stream[:1], 2)
+    #     stream = stream[1:-(1+no_of_padding_bits)]
+
     ret = []
     for stream in bit_streams.values():
         ret.extend(stream)
+    print(ret)
     return ret
 
 

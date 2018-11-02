@@ -25,7 +25,7 @@ def single_test(freqs, bit_rates, send_bits=tests.testbits, **kwargs):
 
     error = utils.calc_error_per_freq(send_bits, ans, freqs, bit_rates)
 
-    if kwargs.get('plot_error_graph'):
+    if kwargs.get('plot_errors'):
         utils.plot_smooth_error_graph(send_bits, ans)
 
     if list(ans) == list(send_bits):
@@ -85,11 +85,16 @@ def send_jpg(freqs, bit_rates, filename, savename, **kwargs):
 # data_rates = [200 * scale_factor**i for i in range(13)]
 # print('{} bytes/s'.format(np.sum(data_rates)/8))
 
-freqs = [1000]
-data_rates = [10]
+freqs = [10000]
+data_rates = [1000]
+print('{} bytes/s'.format(np.sum(data_rates)/8))
 
-recieved_bits = single_test(freqs, data_rates, tests.testbits, plot_audio=False, psk=True, plot_sync=False, plot_conv=True)
-# send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=True, plot_filters=True)
+
+# freqs = [7000]
+# data_rates = [700]
+
+# recieved_bits = single_test(freqs, data_rates, tests.testbits, hamming=True, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=False, plot_errors=True)
+send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=False, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=True, plot_errors=True)
 # transmit(freqs, data_rates, tests.testbits)
 # recieve(freqs, data_rates)
 
