@@ -14,21 +14,19 @@ from consts import *
 am = utils.AudioManager()
 
 
-def single_test(freqs, bit_rates, send_bits=tests.testbits, **kwargs):
-    print('Frequencies: {}'.format(freqs))
-    print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
-    print('bit_rates: {}'.format(bit_rates))
+# data, compression, freqs, coding, modulation
+def single_test(data, compression, freqs, coding, modulation, **kwargs):
 
-    enc.encode('bin.wav', send_bits, freqs, bit_rates, **kwargs)  # hamming plot_audio
-    am.playrec('bin.wav', '_bin.wav')  # plot_ideal_signal
-    ans = dec.decode('_bin.wav', bit_rates, len(send_bits), freqs, **kwargs)  # hamming plot_sync plot_main plot_conv
+    enc.encode(data, compression, freqs, coding, modulation, **kwargs)
+    am.playrec('bin.wav', '_bin.wav')
+    ans = dec.decode(len(data), compression, freqs, coding, modulation, **kwargs)  # hamming plot_sync plot_main plot_conv
 
-    error = utils.calc_error_per_freq(send_bits, ans, freqs, bit_rates)
+    error = utils.calc_error_per_freq(data, ans, freqs)
 
     if kwargs.get('plot_errors'):
-        utils.plot_smooth_error_graph(send_bits, ans)
+        utils.plot_smooth_error_graph(data, ans)
 
-    if list(ans) == list(send_bits):
+    if list(ans) == list(data):
         print("YEET!")
     else:
         print("SHITE")
@@ -37,6 +35,14 @@ def single_test(freqs, bit_rates, send_bits=tests.testbits, **kwargs):
 
 
 def transmit(freqs, bit_rates, send_bits, **kwargs):
+    # Compress ->bits
+
+    # Freq Multiplex
+
+    # Coding
+
+    # Modulate
+
     print('Frequencies: {}'.format(freqs))
     print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
     print('bit_rates: {}'.format(bit_rates))
@@ -85,17 +91,15 @@ def send_jpg(freqs, bit_rates, filename, savename, **kwargs):
 # data_rates = [200 * scale_factor**i for i in range(13)]
 # print('{} bytes/s'.format(np.sum(data_rates)/8))
 
-freqs = [10000]
-data_rates = [1000]
-print('{} bytes/s'.format(np.sum(data_rates)/8))
+freqs = [8000]
 
+print(tests.testbits)
 
-# freqs = [7000]
-# data_rates = [700]
-
-# recieved_bits = single_test(freqs, data_rates, tests.testbits, hamming=True, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=False, plot_errors=True)
-send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=False, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=True, plot_errors=True)
+recieved_bits = single_test(tests.testbits, 'None', freqs, 'none', 'psk', plot_sync=True, plot_audio=False, plot_conv=True, plot_complex=True, plot_errors=True)
+# send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=False, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=True, plot_errors=True)
 # transmit(freqs, data_rates, tests.testbits)
 # recieve(freqs, data_rates)
+
+print(recieved_bits)
 
 plt.show()

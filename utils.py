@@ -221,21 +221,46 @@ def get_sync_pulse2():
     return audio
 
 
-def chunk(l, n, pad = False):
-    """Yield successive n-sized chunks from l."""
-    if pad:
-        data_bit_count = int(np.ceil(np.log2(n)))
-        no_of_padding_bits = (len(l) + data_bit_count) % n
-        format_str = "{:0>" + str(data_bit_count) + "b}"
-        data_bits = format_str.format(no_of_padding_bits)
-        # print("chunking {} bits into {}s".format(len(l), n))
-        # print("Adding data bits {} ".format(data_bits))
-        # print(padding_bit_count)
-        for i in data_bits[::-1]:
-            l = np.insert(l, 0, int(i))
-        for i in range(no_of_padding_bits):
-            l = np.append(l, 0)
+def get_data_rates(freqs):
+    return [freq/10 for freq in freqs]
 
+
+def pad(bit_list, n):
+    data_bit_count = int(np.ceil(np.log2(n)))
+    # print("no of data bits = {}".format(data_bit_count))
+    no_of_padding_bits = (n - (len(bit_list) + data_bit_count) % n) % n
+    # print("no of padding bits = {}".format(no_of_padding_bits))
+    format_str = "{:0>" + str(data_bit_count) + "b}"
+    padding_bits = format_str.format(no_of_padding_bits)
+    # print("chunking {} bits into {}s".format(len(l), n))
+    # print("Adding data bits {} ".format(padding_bits))
+    # print(padding_bit_count)
+    for i in padding_bits[::-1]:
+        bit_list = np.insert(bit_list, 0, int(i))
+    for i in range(no_of_padding_bits):
+        bit_list = np.append(bit_list, 0)
+    return bit_list
+
+
+def unpad(bit_list, n):
+    data_bit_count = int(np.ceil(np.log2(n)))
+    data_bits = bit_list[:data_bit_count]
+    no_of_padding_bits = 0
+    for bit in data_bits:
+        no_of_padding_bits = (no_of_padding_bits << 1) | bit  # base 2 notation
+    # print("Bit list in unpad {}".format(bit_list))
+    # print("Data bit count: {}".format(data_bit_count))
+    # print("No of padding bits: {}".format(no_of_padding_bits))
+    if no_of_padding_bits == 0:
+        bit_list = bit_list[data_bit_count:]
+    else:
+        bit_list = bit_list[data_bit_count:-no_of_padding_bits]
+    # print("Unpadded: {}".format(bit_list))
+    return bit_list
+
+
+def chunk(l, n):
+    """Yield successive n-sized chunks from l."""
     if len(l)%n != 0:
         raise Exception('Number of bits must be divisible by {}'.format(n))
     for i in range(0, len(l), n):
@@ -251,7 +276,8 @@ def calc_error(correct_data, recieved_data):
     return pcnt_error
 
 
-def calc_error_per_freq(sent_data, recieved_data, freqs, bit_rates):
+def calc_error_per_freq(sent_data, recieved_data, freqs):
+    bit_rates = get_data_rates(freqs)
     sent_streams = split_data_into_streams(sent_data, bit_rates)
     recieved_streams = split_data_into_streams(recieved_data, bit_rates)
     for freq, sent_dta, recieved_dta in zip(freqs, sent_streams, recieved_streams):
@@ -272,6 +298,8 @@ def plot_smooth_error_graph(correct_data, recieved_data):
     plt.plot(10*errors)
     plt.axis((0, len(correct_data), 0, 60))
     plt.draw()
+    if len(correct_data) != len(recieved_data):
+        print("RECIEVED DIFFERENT LENGTH OF DATA")
 
 
 def assert_arrays_equal(array1, array2):
