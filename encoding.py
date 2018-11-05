@@ -1,5 +1,6 @@
 from utils import *
 from consts import *
+import log
 
 import wave
 import math
@@ -33,29 +34,32 @@ def hamming_7_4(bit_array, auto_pad=True):
 
 
 def encode(data, compression, freqs, coding, modulation, **kwargs):
-    print('Frequencies: {}'.format(freqs))
-    print('Min freq: {}, Max freq: {}'.format(min(freqs), max(freqs)))
+    log.info("Encoding")
+    if len(data) < 64:
+        log.info('Sending data bits: {}'.format(bits2string(data)))
 
     # Compress ->bits
     if compression == 'image':
-        print("Compression: Image")
+        log.info("Compression: Image")
         with open(kwargs.get('image_file'), 'rb') as f:
             b = np.array(bytearray(f.read()))
         send_bits = np.unpackbits(b)
     else:
-        print("Compression: None")
+        log.info("Compression: None")
         send_bits = data
 
     # Freq Multiplex
+    log.info('Frequencies: {}'.format(freqs))
     bit_rates = get_data_rates(freqs)
+    log.info(f'Bit rates: {bit_rates}')
     bit_streams = split_data_into_streams(send_bits, bit_rates)
 
     # Coding
     if coding == 'hamming':
-        print("Coding: Hamming")
+        log.info("Coding: Hamming")
         coded_bit_streams = [hamming_7_4(stream) for stream in bit_streams]
     else:
-        print("Coding: None")
+        log.info("Coding: None")
         coded_bit_streams = bit_streams
 
     # Modulate
@@ -64,13 +68,18 @@ def encode(data, compression, freqs, coding, modulation, **kwargs):
     audio = append_silence(audio, duration_milliseconds=500)
     audio.extend(get_sync_pulse())
 
+    # If provided with single modulation, use that type for all freqs
+    if type(modulation) == str:
+        log.debug(f"Using modulation type {modulation} for all freqs")
+        modulation = [modulation for _i in freqs]
+
     audio_streams = []
-    for stream, freq, rate in zip(coded_bit_streams, freqs, bit_rates):
-        if modulation == "psk":
-            print("Modulation: PSK")
+    for stream, freq, mod, rate in zip(coded_bit_streams, freqs, modulation, bit_rates):
+        if mod == "psk":
+            log.info("Modulation: PSK")
             audio_streams.append(modulate_psk(stream, freq, rate))
-        elif modulation == "simple":
-            print("Modulation: Simple")
+        elif mod == "simple":
+            log.info("Modulation: Simple")
             audio_streams.append(modulate_simple(stream, freq, rate))
         else:
             raise Exception("Invalid modulation type: {}".format(modulation))
@@ -100,18 +109,16 @@ def modulate_psk(bit_array, frequency, data_rate):
     # Insert 16 bits detailing length of transmission
     assert len(bit_array) < 65536, "ERROR maximum packet size exceeded"
     bit_count_frame = "{:0>16b}".format(len(bit_array))
-    print("Bit count frame: {}".format(bit_count_frame))
+    log.debug("Bit count frame: {}".format(bit_count_frame))
     assert len(bit_count_frame) == 16
     coded_bit_count_frame = hamming_7_4([int(i) for i in bit_count_frame], auto_pad=False)
-    print("Coded bit count frame: {}".format(''.join([str(i) for i in coded_bit_count_frame])))
+    log.debug("Coded bit count frame: {}".format(''.join([str(i) for i in coded_bit_count_frame])))
     bit_array = np.insert(bit_array, 0, coded_bit_count_frame)
 
-    print("len(bit_array): {}".format(len(bit_array)))
+    log.debug("len(bit_array): {}".format(len(bit_array)))
 
     # Insert 8 bits detailing symbol space
     bit_array = np.insert(bit_array, 0, [1, 1, 1, 0, 0, 1, 0, 0])
-
-    print(bit_array)
 
     cumulative_lag = 0
     chunks = chunk(bit_array, 2)

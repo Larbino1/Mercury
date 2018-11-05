@@ -91,15 +91,11 @@ def send_jpg(freqs, bit_rates, filename, savename, **kwargs):
 # data_rates = [200 * scale_factor**i for i in range(13)]
 # print('{} bytes/s'.format(np.sum(data_rates)/8))
 
-freqs = [8000]
+freqs = [3000]
 
-print(tests.testbits)
-
-recieved_bits = single_test(tests.testbits, 'None', freqs, 'none', 'psk', plot_sync=True, plot_audio=False, plot_conv=True, plot_complex=True, plot_errors=True)
+recieved_bits = single_test(tests.testbits, 'None', freqs, 'none', 'psk', plot_sync=True, plot_audio=False, plot_conv=True, plot_complex=True, plot_errors=True, plot_filters=True)
 # send_jpg(freqs, data_rates, 'test.png', 'test2.png', hamming=False, plot_audio=False, psk=True, plot_sync=False, plot_conv=False, plot_complex=True, plot_errors=True)
 # transmit(freqs, data_rates, tests.testbits)
 # recieve(freqs, data_rates)
-
-print(recieved_bits)
 
 plt.show()

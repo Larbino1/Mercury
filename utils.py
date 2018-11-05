@@ -225,6 +225,12 @@ def get_data_rates(freqs):
     return [freq/10 for freq in freqs]
 
 
+def get_symbol_rates(freqs):
+    symbol_widths = [len(get_bandpass(freq)) for freq in freqs]
+    symbol_rates = [SAMPLE_RATE/symbol_width for symbol_width in symbol_widths]
+    return symbol_rates
+
+
 def pad(bit_list, n):
     data_bit_count = int(np.ceil(np.log2(n)))
     # print("no of data bits = {}".format(data_bit_count))
@@ -351,3 +357,7 @@ def mag_plot(b,a=1):
     plt.ylabel("Magnitude")
     plt.xlabel('Normalized Frequency')
     plt.title('Frequency response')
+
+
+def bits2string(bits):
+    return ''.join(str(i) for i in bits)

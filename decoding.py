@@ -1,5 +1,6 @@
 from utils import *
 from consts import *
+import log
 
 import wave
 import math
@@ -12,7 +13,7 @@ import encoding as enc
 
 
 def hamming_7_4(bit_array, auto_unpad=True):
-    # print("decoding hamming 7_4,\trecieved {} bits".format(len(bit_array)))
+    log.debug("decoding hamming 7_4,\trecieved {} bits".format(len(bit_array)))
     from consts import inv
     assert len(bit_array) % 7 == 0, 'For hamming 7:4 decoding array must be multiple of 7'
     chunks = chunk(bit_array, 7)
@@ -39,7 +40,7 @@ def hamming_7_4(bit_array, auto_unpad=True):
         bit_array = np.concatenate((bit_array, x))
     if auto_unpad:
         bit_array = unpad(bit_array, 4)
-    # print("\t\t\t\t\t\treturned {} bits".format(len(bit_array)))
+    log.debug("\t\t\t\t\t\treturned {} bits".format(len(bit_array)))
     return bit_array
 
 
@@ -102,10 +103,10 @@ def decode(bit_count, compression, freqs, coding, modulation, **kwargs):
     for stream in coded_bit_streams:
         # Decode
         if coding == 'hamming':
-            print("Decoding: Hamming")
+            log.info("Decoding: Hamming")
             bit_streams.append(hamming_7_4(stream))
         else:
-            print("Decoding: None")
+            log.info("Decoding: None")
             bit_streams = coded_bit_streams
 
     # Join streams
@@ -114,7 +115,7 @@ def decode(bit_count, compression, freqs, coding, modulation, **kwargs):
         ret.extend(stream)
 
     # Decompress
-    print("Decompression: None")
+    log.info("Decompression: None")
 
     return ret
 
@@ -136,10 +137,10 @@ def demodulate(bit_count, signal, freqs, bit_rates, modulation, **kwargs):
     bit_streams = []
     for freq, bit_rate, stream_length in zip(freqs, bit_rates, stream_lengths):
         if modulation == 'psk':
-            print("Demodulation: PSK")
+            log.info("Demodulation: PSK")
             bit_streams.append(demodulate_psk(signal, freq, bit_rate, bit_count, **kwargs))
         elif modulation == 'simple':
-            print("Demodulation: Simple")
+            log.info("Demodulation: Simple")
             bit_streams.append(demodulate_simple(signal, freq, bit_rate, bit_count, **kwargs))
 
     return bit_streams
@@ -150,7 +151,6 @@ def generate_bit_centres(bit_rate, bit_count=-1):
     n = 0
     while True:
         ctr = round((n + 0.5) * SAMPLE_RATE / bit_rate)
-        # print(f'n = {n}')
         yield ctr
         n += 1
         if 0 < bit_count < n*2:
@@ -246,12 +246,12 @@ def demodulate_psk(signal, freq, bit_rate, bit_count, **kwargs):
     coded_df_bits = []
     for symbol in df_symbol_stream[4:]:
         coded_df_bits.extend(symbol_map[symbol])
-    print("Coded bit count frame: {}".format(''.join([str(i) for i in coded_df_bits])))
+    log.debug("Coded bit count frame: {}".format(''.join([str(i) for i in coded_df_bits])))
     df_bits = hamming_7_4(coded_df_bits, auto_unpad=False)
     bit_count = int(''.join([str(bit) for bit in df_bits]), 2)
 
-    print("Data frame bits: {}".format(''.join([str(i) for i in df_bits])))
-    print("no of bits to recieve: {}".format(bit_count))
+    log.debug("Data frame bits: {}".format(''.join([str(i) for i in df_bits])))
+    log.debug("no of bits to recieve: {}".format(bit_count))
 
     assert bit_count % 2 == 0, 'Error in recieved bit count, must be even for psk after padding'
     symbol_count = bit_count//2
